@@ -7,6 +7,17 @@
 data Piece = D | W | B deriving (Eq, Show)
 
 --
+-- Direction is a data representation of a possible move direction on a board
+-- where R is right
+--       L is left
+--       UL is up left
+--       DL is down left
+--       and so on...
+--
+
+data Direction = R | L | UL | UR | DL | DR deriving (Eq, Show)
+
+--
 -- Point is a tuple of 2 elements
 -- representing a point on a grid system
 -- where the first element represents the x coordinate
@@ -144,14 +155,10 @@ generateSlides b n
         generatedSlides = generateSlidesHelper point n
 
 generateSlidesHelper :: Point -> Int -> [Slide]
-generateSlidesHelper point n = map (\toPoint -> ((x,y),toPoint)) legalToPoints
+generateSlidesHelper point n = map (\toPoint -> (point,toPoint)) legalToPoints
     where
-        x = fst point
-        y = snd point
-        toPoints                                                                 -- Different deltas depending on where point falls
-            | y == n    = [(x-1,y),(x+1,y),(x-1,y-1),(x,y-1),(x-1,y+1),(x,y+1)]  -- relative to the middle line of the board
-            | y > n     = [(x-1,y),(x+1,y),(x,y-1),(x+1,y-1),(x-1,y+1),(x,y+1)]  -- Sure there's a 1000% better way to write this
-            | otherwise = [(x-1,y),(x+1,y),(x-1,y-1),(x,y-1),(x+1,y+1),(x,y+1)]  -- #butitworks
+        directions = [R,L,UL,UR,DL,DR]
+        toPoints = map (\d -> move point d n) directions
         legalToPoints = filter (\p -> withinBoard p n) toPoints  -- Filter for points that fall within the board
 
 withinBoard :: Point -> Int -> Bool
@@ -165,39 +172,69 @@ withinBoard point n = x > 0 &&
         max = (2 * n) - 1                 -- Based on board dimensions
         relativeMax = max - (abs (n - y)) -- Max possible x relative to its y position on the grid
 
+generateLeaps :: Grid -> Int -> [Jump]
+generateLeaps b n
+    | null b       = []
+    | otherwise    = possibleLeaps ++ (generateLeaps (tail b) n)
+    where
+        point = head b
+        possibleLeaps = generateLeapsHelper point n
 
---generateLeaps :: Grid -> Int -> [Jump]
---generateLeaps b n
---    | null b       = []
---    | otherwise    = possibleLeaps ++ (generateLeaps (tail b) n)
---    where
---        point = head b
---        possibleLeaps = generateLeapsHelper point n
+generateLeapsHelper :: Point -> Int -> [Jump]
+generateLeapsHelper point n = map (\l -> (point, fst l, snd l)) legalLeaps
+    where
+        directions = [R,L,UL,UR,DL,DR]
+        allLeaps = map (\d -> moveTwice point d n) directions
+        legalLeaps = filter (\l -> withinBoard (snd l) n) allLeaps -- Filter on leaps where final position (snd l) is within board
 
---generateLeapsHelper :: Point -> Int -> [Jump]
---generateLeapsHelper point n = 
---    where
---        x = fst point
---        y = snd point
+moveTwice :: Point -> Direction -> Int -> (Point,Point)
+moveTwice point direction n = (first,second)
+    where
+        first = move point direction n
+        second = move first direction n
 
---generateLeapsHelper :: Point -> Int -> [Jump]
---generateLeapsHelper point n = map (\toPoint -> ((x,y), middlePoint (x,y) toPoint, toPoint)) legalToPoints
---    where
---        x = fst point
---        y = snd point
---        toPoints
---            | mod x 2 == 1 = [(x-2,y),(x-2,y-2),(x,y-2),(x+2,y),(x,y+2),(x-2,y+2)]
---            | otherwise  = [(x-2,y),(x+2,y),(x-1,y-2),(x+1,y-2),(x-1,y+2),(x+1,y+2)]
---        legalToPoints = filter (\p -> (withinBoard p n)) toPoints
+-- Move in a direction on the grid based on starting position
+-- Where you are relative to the horizontal midpoint line (n) affects the delta, hence the UL/UR/DL/DR functions 
+move :: Point -> Direction -> Int -> Point
+move point direction n
+    | direction == L = (x-1,y)
+    | direction == R = (x+1,y)
+    | direction == UL = moveUpLeft point n
+    | direction == UR = moveUpRight point n
+    | direction == DL = moveDownLeft point n
+    | direction == DR = moveDownRight point n
+    where
+        x = fst point
+        y = snd point
 
---middlePoint :: Point -> Point -> Point
---middlePoint from to
---    | x1 == x2      = (x1, mid y1 y2)
---    | y1 == y2      = (mid x1 x2, y1)
---    | otherwise     = (mid x1 x2, mid y1 y2)
---    where
---        x1 = fst from
---        y1 = snd from
---        x2 = fst to
---        y2 = snd to
---        mid p1 p2 = quot (p1 + p2) 2
+moveUpLeft :: Point -> Int -> Point
+moveUpLeft point n
+    | y <= n    = (x-1,y-1)
+    | otherwise = (x,y-1)
+    where
+        x = fst point
+        y = snd point
+
+moveUpRight :: Point -> Int -> Point
+moveUpRight point n
+    | y <= n    = (x,y-1)
+    | otherwise = (x+1,y-1)
+    where
+        x = fst point
+        y = snd point
+
+moveDownLeft :: Point -> Int -> Point
+moveDownLeft point n
+    | y >= n    = (x-1,y+1)
+    | otherwise = (x,y+1)
+    where
+        x = fst point
+        y = snd point
+
+moveDownRight :: Point -> Int -> Point
+moveDownRight point n
+    | y >= n    = (x,y+1)
+    | otherwise = (x+1,y+1)
+    where
+        x = fst point
+        y = snd point
