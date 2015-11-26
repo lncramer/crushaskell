@@ -239,3 +239,44 @@ moveDownRight point n
     where
         x = fst point
         y = snd point
+
+--
+-- boardEvaluator
+--
+-- This function consumes a board and performs a static board evaluation, by 
+-- taking into account whose perspective the program is playing from, the list 
+-- of boards already seen, the size of the board, and whether or not it is the
+-- program's turn or not; to generate quantitative measures of the board, and 
+-- accordingly produce a goodness value of the given board 
+--
+-- Arguments:
+-- -- player: W or B representing the player the program is
+-- -- history: a list of Boards of representing all boards already seen
+-- -- n: an Integer representing the dimensions of the board
+-- -- board: a Board representing the most recent board
+-- -- myTurn: a Boolean indicating whether it is the program's turn or the opponents.
+--
+-- Returns: the goodness value of the provided board
+--
+
+-- If it's your turn you have a chance to further improve your position
+-- so apply some happy multiplier
+-- 
+
+-- Example board: [W,W,W,D,W,W,D,D,D,D,D,D,D,B,B,D,B,B,B]
+-- TODO: Could use a ton of fine tuning. Incorporate history and n.
+--       Or completely revamp if you want (I won't be offended :D)
+
+boardEvaluator :: Piece -> [Board] -> Int -> Board -> Bool -> Int
+boardEvaluator player history n board myTurn
+    | player == W = (numWhites - numBlacks) + turnBonus
+    | otherwise   = (numBlacks - numWhites) + turnBonus
+    where
+        numWhites = countPieces W board
+        numBlacks = countPieces B board
+        turnBonus = if myTurn == True then 5 else 0
+
+countPieces :: Piece -> Board -> Int
+countPieces piece board = length pieces
+    where
+        pieces = filter (\p -> p == piece) board
