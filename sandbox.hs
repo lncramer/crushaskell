@@ -156,9 +156,9 @@ generateSlidesHelper point n = map (\toPoint -> ((x,y),toPoint)) legalToPoints
 
 withinBoard :: Point -> Int -> Bool
 withinBoard point n = x > 0 && 
-                     y > 0 && 
-                     y <= max && 
-                     x <= relativeMax
+                      y > 0 && 
+                      y <= max && 
+                      x <= relativeMax
     where
         x = fst point
         y = snd point 
