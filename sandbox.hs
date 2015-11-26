@@ -148,12 +148,56 @@ generateSlidesHelper point n = map (\toPoint -> ((x,y),toPoint)) legalToPoints
     where
         x = fst point
         y = snd point
-        toPoints = [(x-1,y),(x,y-1),(x-1,y-1),(x+1,y),(x,y+1),(x+1,y+1)]
-        legalToPoints = filter (\slide -> (legalSlide slide n)) toPoints
+        toPoints                                                                 -- Different deltas depending on where point falls
+            | y == n    = [(x-1,y),(x+1,y),(x-1,y-1),(x,y-1),(x-1,y+1),(x,y+1)]  -- relative to the middle line of the board
+            | y > n     = [(x-1,y),(x+1,y),(x,y-1),(x+1,y-1),(x-1,y+1),(x,y+1)]  -- Sure there's a 1000% better way to write this
+            | otherwise = [(x-1,y),(x+1,y),(x-1,y-1),(x,y-1),(x+1,y+1),(x,y+1)]  -- #butitworks
+        legalToPoints = filter (\p -> withinBoard p n) toPoints  -- Filter for points that fall within the board
 
-legalSlide :: Point -> Int -> Bool
-legalSlide point n = x > 0 && y > 0 && y <= max && x <= (max - (abs (n - y)))
+withinBoard :: Point -> Int -> Bool
+withinBoard point n = x > 0 && 
+                     y > 0 && 
+                     y <= max && 
+                     x <= relativeMax
     where
         x = fst point
         y = snd point 
-        max = (2 * n) - 1
+        max = (2 * n) - 1                 -- Based on board dimensions
+        relativeMax = max - (abs (n - y)) -- Max possible x relative to its y position on the grid
+
+
+--generateLeaps :: Grid -> Int -> [Jump]
+--generateLeaps b n
+--    | null b       = []
+--    | otherwise    = possibleLeaps ++ (generateLeaps (tail b) n)
+--    where
+--        point = head b
+--        possibleLeaps = generateLeapsHelper point n
+
+--generateLeapsHelper :: Point -> Int -> [Jump]
+--generateLeapsHelper point n = 
+--    where
+--        x = fst point
+--        y = snd point
+
+--generateLeapsHelper :: Point -> Int -> [Jump]
+--generateLeapsHelper point n = map (\toPoint -> ((x,y), middlePoint (x,y) toPoint, toPoint)) legalToPoints
+--    where
+--        x = fst point
+--        y = snd point
+--        toPoints
+--            | mod x 2 == 1 = [(x-2,y),(x-2,y-2),(x,y-2),(x+2,y),(x,y+2),(x-2,y+2)]
+--            | otherwise  = [(x-2,y),(x+2,y),(x-1,y-2),(x+1,y-2),(x-1,y+2),(x+1,y+2)]
+--        legalToPoints = filter (\p -> (withinBoard p n)) toPoints
+
+--middlePoint :: Point -> Point -> Point
+--middlePoint from to
+--    | x1 == x2      = (x1, mid y1 y2)
+--    | y1 == y2      = (mid x1 x2, y1)
+--    | otherwise     = (mid x1 x2, mid y1 y2)
+--    where
+--        x1 = fst from
+--        y1 = snd from
+--        x2 = fst to
+--        y2 = snd to
+--        mid p1 p2 = quot (p1 + p2) 2
