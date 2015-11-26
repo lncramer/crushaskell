@@ -280,3 +280,24 @@ countPieces :: Piece -> Board -> Int
 countPieces piece board = length pieces
     where
         pieces = filter (\p -> p == piece) board
+
+--
+-- gameOver
+--
+-- This function consumes a board, a list of boards, and the dimension
+-- of board and determines whether the given board is in a state where
+-- the game has ended by checking if the board is present in the provided
+-- list of boards or either the W or B pieces are less than dimension of board
+--
+-- Arguments:
+-- -- board: a Board representing the most recent board
+-- -- history: a list of Boards of representing all boards already seen
+-- -- n: an Integer representing the dimensions of the board
+--
+-- Returns: True if the board is in a state where the game has ended, otherwise False
+--
+
+gameOver :: Board -> [Board] -> Int -> Bool
+gameOver board history n = elem board history ||
+                           countPieces W board < n ||
+                           countPieces B board < n
