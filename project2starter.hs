@@ -82,7 +82,7 @@ data Next a = Next {usedDepth :: Int, newBoard :: a, seenBoards :: [a], cplayer 
 -- 		 nextBoards are the child nodes of the current node
 --
 
-data Tree a = Node {depth :: Int, board :: a, nextBoards :: [Tree a]} deriving (Show)
+data Tree a = Node {depth :: Int, value :: Int, board :: a, nextBoards :: [Tree a]} deriving (Show)
 
 --
 -- BoardTree is the internal representation of the search tree of the given board
@@ -154,8 +154,33 @@ heuristic0 = boardEvaluator W [] 3
 --
 
 crusher :: [String] -> Char -> Int -> Int -> [String]
-crusher (current:old) p d n = -- To Be Completed
+crusher (current:old) p d n = 
+    where
+    	board = strtoBoard current
+        tree = generateTree board 0 d charToPiece True n -- Assume the player goes first w/ depth 0
 
+charToPiece :: Char -> Piece
+chartoPiece c
+    | c == 'B'  = B
+    | c == 'W'  = W
+    | otherwise = D
+
+-- generateTree
+-- Generates tree with all the heuristic values
+-- These values are based on who the player is and who's turn it is
+generateTree :: Board -> Int -> Int -> Piece -> Bool -> Int -> BoardTree
+generateTree board depth maxDepth piece isPlayersTurn n
+    | gameOver board || depth == maxDepth = Node depth score board []
+    | otherwise                           = Node depth score board childre}
+    where
+    	score       = boardEvaluator piece [] n board isPlayersTurn
+        childBoards = generateMoves board isPlayersTurn
+        children    = map (\board -> generateTree board
+                                                  (depth + 1)
+                                                  maxDepth
+                                                  piece
+                                                  (not isPlayersTurn))
+                           childBoards -- Subtrees
 --
 -- gameOver
 --

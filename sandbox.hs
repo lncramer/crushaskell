@@ -82,7 +82,7 @@ data Next a = Next {usedDepth :: Int, newBoard :: a, seenBoards :: [a], cplayer 
 -- 		 nextBoards are the child nodes of the current node
 --
 
-data Tree a = Node {depth :: Int, board :: a, nextBoards :: [Tree a]} deriving (Show)
+data Tree a = Node {depth :: Int, value :: Int, board :: a, nextBoards :: [Tree a]} deriving (Show)
 
 --
 -- BoardTree is the internal representation of the search tree of the given board
@@ -145,6 +145,8 @@ type Move = (Point,Point)
 
 -- Sample grid for testing (n = 3)
 -- [(1,1),(2,1),(3,1),(1,2),(2,2),(3,2),(4,2),(1,3),(2,3),(3,3),(4,3),(5,3),(1,4),(2,4),(3,4),(4,4),(1,5),(2,5),(3,5)]
+--sampleGrid = [(0,0),(1,0),(2,0),(0,1),(1,1),(2,1),(3,1),(0,2),(1,2),(2,2),(3,2),(4,2),(0,3),(1,3),(2,3),(3,3),(0,4),(1,4),(2,4)]
+--sampleBoard = [W,W,W,D,W,W,D,D,D,D,D,D,D,B,B,D,B,B,B]
 
 generateSlides :: Grid -> Int -> [Slide]
 generateSlides b n
@@ -162,15 +164,15 @@ generateSlidesHelper point n = map (\toPoint -> (point,toPoint)) legalToPoints
         legalToPoints = filter (\p -> withinBoard p n) toPoints  -- Filter for points that fall within the board
 
 withinBoard :: Point -> Int -> Bool
-withinBoard point n = x > 0 && 
-                      y > 0 && 
-                      y <= max && 
-                      x <= relativeMax
+withinBoard point n = x >= 0 && 
+                      y >= 0 && 
+                      y <= max - 1 && 
+                      x <= relativeMax - 1
     where
         x = fst point
         y = snd point 
         max = (2 * n) - 1                 -- Based on board dimensions
-        relativeMax = max - (abs (n - y)) -- Max possible x relative to its y position on the grid
+        relativeMax = max - (abs (n - (y + 1))) -- Max possible x relative to its y position on the grid
 
 generateLeaps :: Grid -> Int -> [Jump]
 generateLeaps b n
@@ -301,3 +303,93 @@ gameOver :: Board -> [Board] -> Int -> Bool
 gameOver board history n = elem board history ||
                            countPieces W board < n ||
                            countPieces B board < n
+
+---- generateTree
+---- Generates tree with all the heuristic values
+---- These values are based on who the player is and who's turn it is
+generateTree :: Board -> Int -> Int -> Piece -> Bool -> Int -> [Board] -> BoardTree
+generateTree board depth maxDepth piece isPlayersTurn n history
+    | gameOver board history n || depth == maxDepth = Node depth score board []
+    | otherwise                                     = Node depth score board children
+    where
+        score       = boardEvaluator piece history n board isPlayersTurn
+        childBoards = generateMoves board turn n
+        children    = map (\child -> generateTree child
+                                                  (depth + 1)
+                                                  maxDepth
+                                                  piece
+                                                  (not isPlayersTurn)
+                                                  n
+                                                  (board:history))
+                           childBoards -- Subtrees
+        turn          = if isPlayersTurn then piece else opponent
+        opponent      = if piece == W then B else W
+
+-- Generate all the possible (valid) moves for the current piece on the board
+-- Piece is either B or W
+generateMoves :: Board -> Piece -> Int -> [Board]
+generateMoves board piece n = []
+    where
+        boardState = boardToState board n
+        playerTiles = filter (\tile -> (fst tile) == piece) boardState              -- [Tile]
+        playerSlides = map (\tile -> generateSlidesHelper (snd tile) n) playerTiles -- [[Slide]]
+        playerLeaps = map (\tile -> generateLeapsHelper (snd tile) n) playerTiles   -- [[Jump]]
+        legalSlides = findLegalSlides playerSlides boardState
+        legalLeaps = findLegalLeaps playerLeaps boardState piece
+
+findLegalSlides :: [[Slide]] -> State -> [[Slide]]
+findLegalSlides slides boardState
+    | null slides = []
+    | otherwise   = [(filter (\slide -> containsPiece (snd slide) boardState D) (head slides))] -- head slides is of type [Slide] 
+                    ++ 
+                    findLegalSlides (tail slides) boardState
+
+findLegalLeaps :: [[Jump]] -> State -> Piece -> [[Jump]]
+findLegalLeaps leaps boardState playerPiece
+    | null leaps = []
+    | otherwise = [(filter (\leap -> not (containsPiece (leapDestination leap) boardState playerPiece) &&
+                                     containsPiece (leapMiddle leap) boardState playerPiece)
+                          (head leaps))] -- [Jump]
+                   ++ 
+                   findLegalLeaps (tail leaps) boardState playerPiece
+
+leapDestination :: Jump -> Point
+leapDestination (_,_,point) = point
+
+leapMiddle :: Jump -> Point
+leapMiddle (_,point,_) = point
+
+containsPiece :: Point -> State -> Piece -> Bool
+containsPiece point state piece = fst matchingTile == piece
+    where
+        matchingTile = head (filter (\tile -> (snd tile) == point) state)
+
+containsOpponent :: Point -> State -> Piece -> Bool
+containsOpponent point state piece = fst matchingTile == opponent
+    where
+        matchingTile = head (filter (\tile -> (snd tile) == point) state)
+        opponent     = if piece == W then B else W
+
+boardToState :: Board -> Int -> State
+boardToState board n
+    | otherwise      = boardToStateHelper board grid
+    where 
+        grid = generateGrid n (n-1) (2 * (n-1)) []
+
+boardToStateHelper :: Board -> Grid -> State
+boardToStateHelper board grid
+    | null board = []
+    | otherwise  = [(piece, point)] ++ boardToStateHelper remainingBoard remainingGrid
+    where
+        piece = head board
+        point = head grid
+        remainingBoard = tail board
+        remainingGrid = tail grid
+
+generateGrid :: Int -> Int -> Int -> Grid -> Grid
+generateGrid n1 n2 n3 acc 
+    | n3 == -1      = acc
+    | otherwise     = generateGrid nn1 (n2 - 1) (n3 - 1) (row ++ acc)
+        where
+            row = map (\ x -> (x,n3)) [0 .. (n1 - 1)]
+            nn1 = if n2 > 0 then n1 + 1 else n1 - 1
