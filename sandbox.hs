@@ -187,7 +187,8 @@ generateLeapsHelper point n = map (\l -> (point, fst l, snd l)) legalLeaps
         allLeaps = map (\d -> moveTwice point d n) directions
         legalLeaps = filter (\l -> withinBoard (snd l) n) allLeaps -- Filter on leaps where final position (snd l) is within board
 
-moveTwice :: Point -> Direction -> Int -> (Point,Point)
+-- Outputted slide represents the point that's being "jumped over" and the final jump position
+moveTwice :: Point -> Direction -> Int -> Slide
 moveTwice point direction n = (first,second)
     where
         first = move point direction n
