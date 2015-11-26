@@ -328,7 +328,7 @@ generateTree board depth maxDepth piece isPlayersTurn n history
 -- Generate all the possible (valid) moves for the current piece on the board
 -- Piece is either B or W
 generateMoves :: Board -> Piece -> Int -> [Board]
-generateMoves board piece n = []
+generateMoves board piece n = generateMovesHelper boardState (concat legalSlides) (concat legalLeaps)
     where
         boardState = boardToState board n
         playerTiles = filter (\tile -> (fst tile) == piece) boardState              -- [Tile]
@@ -336,6 +336,12 @@ generateMoves board piece n = []
         playerLeaps = map (\tile -> generateLeapsHelper (snd tile) n) playerTiles   -- [[Jump]]
         legalSlides = findLegalSlides playerSlides boardState
         legalLeaps = findLegalLeaps playerLeaps boardState piece
+
+generateMovesHelper :: State -> [Slide] -> [Jump] -> [Board]
+generateMovesHelper state slides jumps = []
+-- TODO: For each slide and for each jump
+--       Construct the resulting board based on the current state
+--       And append is to the resulting list of boards
 
 findLegalSlides :: [[Slide]] -> State -> [[Slide]]
 findLegalSlides slides boardState
