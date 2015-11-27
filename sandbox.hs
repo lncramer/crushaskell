@@ -340,7 +340,8 @@ generateMoves board piece n = generateMovesHelper boardState legalSlides legalLe
 generateMovesHelper :: State -> [Slide] -> [Jump] -> [Board]
 generateMovesHelper state slides jumps = []
 -- TODO: For each slide and for each jump
---       Construct the resulting board based on the current state
+--       Construct the resulting state based on the current state and the move
+--       Convert it to a Board (still need to create a stateToBoard function)
 --       And append is to the resulting list of boards
 
 findLegalSlides :: [Slide] -> State -> [Slide]
