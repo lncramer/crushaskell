@@ -328,14 +328,12 @@ generateTree board depth maxDepth piece isPlayersTurn n history
 -- Generate all the possible (valid) moves for the current piece on the board
 -- Piece is either B or W
 generateMoves :: Board -> Piece -> Int -> [Board]
-generateMoves board piece n = generateMovesHelper boardState 
-                                                  (concat legalSlides) 
-                                                  (concat legalLeaps)   -- Concat flattens the list
+generateMoves board piece n = generateMovesHelper boardState legalSlides legalLeaps
     where
         boardState = boardToState board n
         playerTiles = filter (\tile -> (fst tile) == piece) boardState              -- [Tile]
-        playerSlides = map (\tile -> generateSlidesHelper (snd tile) n) playerTiles -- [[Slide]]
-        playerLeaps = map (\tile -> generateLeapsHelper (snd tile) n) playerTiles   -- [[Jump]]
+        playerSlides = concat (map (\tile -> generateSlidesHelper (snd tile) n) playerTiles) -- concat flattens
+        playerLeaps = concat (map (\tile -> generateLeapsHelper (snd tile) n) playerTiles)
         legalSlides = findLegalSlides playerSlides boardState
         legalLeaps = findLegalLeaps playerLeaps boardState piece
 
@@ -345,21 +343,14 @@ generateMovesHelper state slides jumps = []
 --       Construct the resulting board based on the current state
 --       And append is to the resulting list of boards
 
-findLegalSlides :: [[Slide]] -> State -> [[Slide]]
-findLegalSlides slides boardState
-    | null slides = []
-    | otherwise   = [(filter (\slide -> containsPiece (snd slide) boardState D) (head slides))] -- head slides is of type [Slide] 
-                    ++ 
-                    findLegalSlides (tail slides) boardState
+findLegalSlides :: [Slide] -> State -> [Slide]
+findLegalSlides slides boardState = filter (\slide -> containsPiece (snd slide) boardState D) slides
 
-findLegalLeaps :: [[Jump]] -> State -> Piece -> [[Jump]]
-findLegalLeaps leaps boardState playerPiece
-    | null leaps = []
-    | otherwise = [(filter (\leap -> not (containsPiece (leapDestination leap) boardState playerPiece) &&
-                                     containsPiece (leapMiddle leap) boardState playerPiece)
-                          (head leaps))] -- [Jump]
-                   ++ 
-                   findLegalLeaps (tail leaps) boardState playerPiece
+findLegalLeaps :: [Jump] -> State -> Piece -> [Jump]
+findLegalLeaps leaps boardState playerPiece =  filter 
+                                               (\leap -> not (containsPiece (leapDestination leap) boardState playerPiece)
+                                                          && (containsPiece (leapMiddle leap) boardState playerPiece) )
+                                               leaps
 
 leapDestination :: Jump -> Point
 leapDestination (_,_,point) = point
