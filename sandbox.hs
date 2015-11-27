@@ -328,7 +328,9 @@ generateTree board depth maxDepth piece isPlayersTurn n history
 -- Generate all the possible (valid) moves for the current piece on the board
 -- Piece is either B or W
 generateMoves :: Board -> Piece -> Int -> [Board]
-generateMoves board piece n = generateMovesHelper boardState (concat legalSlides) (concat legalLeaps)
+generateMoves board piece n = generateMovesHelper boardState 
+                                                  (concat legalSlides) 
+                                                  (concat legalLeaps)   -- Concat flattens the list
     where
         boardState = boardToState board n
         playerTiles = filter (\tile -> (fst tile) == piece) boardState              -- [Tile]
