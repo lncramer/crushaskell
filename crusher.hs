@@ -273,23 +273,22 @@ countPieces piece board = length pieces
 --
 -- Returns: the goodness value of the provided board
 --
-
--- If it's your turn you have a chance to further improve your position
--- so apply some happy multiplier
--- 
-
 -- Example board: [W,W,W,D,W,W,D,D,D,D,D,D,D,B,B,D,B,B,B]
 -- TODO: Could use a ton of fine tuning. Incorporate history and n.
 --       Or completely revamp if you want (I won't be offended :D)
 
 boardEvaluator :: Piece -> [Board] -> Int -> Board -> Bool -> Int
 boardEvaluator player history n board myTurn
-    | player == W = (numWhites - numBlacks) + turnBonus
-    | otherwise   = (numBlacks - numWhites) + turnBonus
+    | (not myTurn) && isLosingBoard = 20 * dimensionMultiplier   -- Game over on the opponents turn (program wins)
+    | myTurn && isLosingBoard       = -20 * dimensionMultiplier  -- Game over on program's turn (program loses)
+    | player == W                   = ((numWhites - numBlacks) + turnBonus) * dimensionMultiplier
+    | otherwise                     = ((numBlacks - numWhites) + turnBonus) * dimensionMultiplier
     where
         numWhites = countPieces W board
         numBlacks = countPieces B board
-        turnBonus = if myTurn == True then 5 else 0
+        isLosingBoard = gameOver board history n
+        turnBonus = if myTurn then 5 else 0      -- If it's your turn you have a chance to further improve your position. May not actually make sense to have this?
+        dimensionMultiplier = ceiling (10 * (1 / (fromIntegral n))) -- Difference is more significant for smaller dimensions
 
 {-**************************************************************
 --*****************MINIMAX FUNCTION*****************************
