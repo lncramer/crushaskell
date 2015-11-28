@@ -478,7 +478,7 @@ move point direction n
 
 moveUpLeft :: Point -> Int -> Point
 moveUpLeft point n
-    | y <= n    = (x-1,y-1)
+    | y <= n-1  = (x-1,y-1)
     | otherwise = (x,y-1)
     where
         x = fst point
@@ -486,7 +486,7 @@ moveUpLeft point n
 
 moveUpRight :: Point -> Int -> Point
 moveUpRight point n
-    | y <= n    = (x,y-1)
+    | y <= n-1  = (x,y-1)
     | otherwise = (x+1,y-1)
     where
         x = fst point
@@ -494,7 +494,7 @@ moveUpRight point n
 
 moveDownLeft :: Point -> Int -> Point
 moveDownLeft point n
-    | y >= n    = (x-1,y+1)
+    | y >= n-1  = (x-1,y+1)
     | otherwise = (x,y+1)
     where
         x = fst point
@@ -502,7 +502,7 @@ moveDownLeft point n
 
 moveDownRight :: Point -> Int -> Point
 moveDownRight point n
-    | y >= n    = (x,y+1)
+    | y >= n-1  = (x,y+1)
     | otherwise = (x+1,y+1)
     where
         x = fst point
