@@ -283,8 +283,8 @@ boardEvaluator player history n board myTurn
         numWhites = countPieces W board
         numBlacks = countPieces B board
         isLosingBoard = gameOver board history n
-        turnBonus = if myTurn then 5 else 0      -- If it's your turn you have a chance to further improve your position. May not actually make sense to have this?
-        dimensionMultiplier = ceiling (10 * (1 / (fromIntegral n))) -- Difference is more significant for smaller dimensions
+        turnBonus = if myTurn then 5 else 0      -- If it's your turn you have a chance to further improve your position so apply some arbitrary bonus
+        dimensionMultiplier = ceiling (10 * (1 / (fromIntegral n))) -- Difference in pieces becomes more significant for smaller dimensions
 
 {-**************************************************************
 --*****************MINIMAX FUNCTION*****************************
