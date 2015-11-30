@@ -273,10 +273,6 @@ countPieces piece board = length pieces
 --
 -- Returns: the goodness value of the provided board
 --
--- Example board: [W,W,W,D,W,W,D,D,D,D,D,D,D,B,B,D,B,B,B]
--- TODO: Could use a ton of fine tuning. Incorporate history and n.
---       Or completely revamp if you want (I won't be offended :D)
-
 boardEvaluator :: Piece -> [Board] -> Int -> Board -> Bool -> Int
 boardEvaluator player history n board myTurn
     | (not myTurn) && isLosingBoard = 20 * dimensionMultiplier   -- Game over on the opponents turn (program wins)
@@ -294,16 +290,19 @@ boardEvaluator player history n board myTurn
 --*****************MINIMAX FUNCTION*****************************
 --*************************************************************-}
 
--- Update all the node values based on the min/max algorithm
+-- Apply minimax to a tree. Note that this only updates the node values in the tree
+-- based on whether it's selecting the maximum or minimum, it has nothing to do with
+-- choosing the next best board to move to (this is in the main crusher function)
 applyMinimax :: BoardTree -> Bool -> BoardTree
 applyMinimax node selectMax
-    | null children                   = node
+    | null children                   = node   -- No children so node is unaffected by minimax
     | selectMax == True               = selectMaximumValue node minimaxAppliedChildren
     | otherwise                       = selectMinimumValue node minimaxAppliedChildren
     where
         children = nextBoards node
-        minimaxAppliedChildren = map (\subtree -> applyMinimax subtree (not selectMax)) children
+        minimaxAppliedChildren = map (\subtree -> applyMinimax subtree (not selectMax)) children -- Recursively apply minimax to children
 
+-- Selects the maximum value of a root node's children and updates the root node with that value
 selectMaximumValue :: BoardTree -> [BoardTree] -> BoardTree
 selectMaximumValue root children = updatedRoot
     where
@@ -311,6 +310,7 @@ selectMaximumValue root children = updatedRoot
         maximumValue = maximum childValues
         updatedRoot  = Node (depth root) maximumValue (board root) children
 
+-- Selects the minimum value of a root node's children and updates the root node with that value
 selectMinimumValue :: BoardTree -> [BoardTree] -> BoardTree
 selectMinimumValue root children = updatedRoot
     where
@@ -343,14 +343,14 @@ selectMinimumValue root children = updatedRoot
 crusher :: [String] -> Char -> Int -> Int -> [String]
 crusher (current:old) p d n
     | gameOver currentBoard history n = error "Game is over."
-    | otherwise                       = [boardToStr nextBoard] ++ (current:old)
+    | otherwise                       = [boardToStr nextBoard] ++ (current:old) -- Find the next best board and add to list
     where
         currentBoard = sTrToBoard current
         history = map (\str -> sTrToBoard str) old
         tree = generateTree currentBoard 0 d (charToPiece p) True n history -- Assume the player goes first w/ depth 0
-        minimaxAppliedTree = applyMinimax tree True
-        valueToMatch = value minimaxAppliedTree
-        nextBoard    = board (head (filter (\subtree -> (value subtree) == valueToMatch) (nextBoards minimaxAppliedTree)))
+        minimaxAppliedTree = applyMinimax tree True -- Apply minimax to the tree, pass in True because root node should select max value for next board
+        valueToMatch = value minimaxAppliedTree     -- Determine the value of the child node to select as the next best board
+        nextBoard    = board (head (filter (\subtree -> (value subtree) == valueToMatch) (nextBoards minimaxAppliedTree))) -- Select the board from the root's children with the value to match
 
 --
 -- gameOver
@@ -369,21 +369,21 @@ gameOver board history n = elem board history ||
 -- appropriate heuristic values. Note that this tree has not had minimax applied.
 generateTree :: Board -> Int -> Int -> Piece -> Bool -> Int -> [Board] -> BoardTree
 generateTree currBoard depth maxDepth piece isPlayersTurn n history
-    | gameOver currBoard history n || depth == maxDepth = Node depth score currBoard []
-    | otherwise                                         = Node depth score currBoard filteredChildren
+    | gameOver currBoard history n || depth == maxDepth = Node depth score currBoard []  -- Leaf node
+    | otherwise                                         = Node depth score currBoard filteredChildren -- Root node with children
     where
-        score       = boardEvaluator piece history n currBoard isPlayersTurn
-        childBoards = generateMoves currBoard turn n
-        children    = map (\child -> generateTree child
-                                                  (depth + 1)
-                                                  maxDepth
-                                                  piece
-                                                  (not isPlayersTurn)
-                                                  n
-                                                  (currBoard:history))
-                           childBoards -- Subtrees
-        filteredChildren = filter (\child -> not (elem (board child) history)) children -- [BoardTree]
-        turn          = if isPlayersTurn then piece else opponent
+        score       = boardEvaluator piece history n currBoard isPlayersTurn -- Evaluate current node (board)
+        childBoards = generateMoves currBoard turn n -- Generate all possible moves from current board
+        children    = map (\child -> generateTree child         -- Recursively generate child subtrees
+                                                  (depth + 1)   -- Increase depth
+                                                  maxDepth      -- Max depth stays the same
+                                                  piece           
+                                                  (not isPlayersTurn) -- Flip whether it's the player's turn
+                                                  n                    
+                                                  (currBoard:history)) -- Add current board onto history
+                           childBoards
+        filteredChildren = filter (\child -> not (elem (board child) history)) children -- Filter out boards that have already occurred
+        turn          = if isPlayersTurn then piece else opponent -- Determine turn for evaluating heuristic
         opponent      = if piece == W then B else W
 
 -- Generate all the possible (valid) moves for the current piece on the board
@@ -392,43 +392,44 @@ generateMoves :: Board -> Piece -> Int -> [Board]
 generateMoves board piece n = generateMovesHelper boardState piece legalSlides legalLeaps
     where
         boardState = boardToState board n
-        playerTiles = filter (\tile -> (fst tile) == piece) boardState              -- [Tile]
-        playerSlides = concat (map (\tile -> generateSlides (snd tile) n) playerTiles) -- concat flattens
-        playerLeaps = concat (map (\tile -> generateLeaps (snd tile) n) playerTiles)
-        legalSlides = findLegalSlides playerSlides boardState
-        legalLeaps = findLegalLeaps playerLeaps boardState piece
+        playerTiles = filter (\tile -> (fst tile) == piece) boardState -- Select tiles the player occupies
+        playerSlides = concat (map (\tile -> generateSlides (snd tile) n) playerTiles) -- Generate all possible slides for player, concat flattens [[Slide]] to [Slide]
+        playerLeaps = concat (map (\tile -> generateLeaps (snd tile) n) playerTiles) -- Generate all possible leaps for player, concat flattens
+        legalSlides = findLegalSlides playerSlides boardState      -- Select legal slides (moving to an empty space)
+        legalLeaps = findLegalLeaps playerLeaps boardState piece   -- Select legal leaps (jumping over player piece to an empty or opponent occupied space)
 
+-- Helper for generating the next state based on a move and turning it back into a board
 generateMovesHelper :: State -> Piece -> [Slide] -> [Jump] -> [Board]
 generateMovesHelper state piece slides jumps = allResultingBoards
     where
-        statesFromSlides = map (\slide -> buildNextStateFromSlide state piece slide) slides
-        statesFromJumps = map (\jump -> buildNextStateFromJump state piece jump) jumps
-        allResultingStates = statesFromSlides ++ statesFromJumps
-        allResultingBoards = map (\state -> stateToBoard state) allResultingStates
+        statesFromSlides = map (\slide -> buildNextStateFromSlide state piece slide) slides  -- Resulting states from each slide
+        statesFromJumps = map (\jump -> buildNextStateFromJump state piece jump) jumps       -- Resulting states from each jump
+        allResultingStates = statesFromSlides ++ statesFromJumps -- Combine the two together
+        allResultingBoards = map (\state -> stateToBoard state) allResultingStates -- Convert all possible resulting states into boards
 
--- If tile position matches the start then change it to a D
--- If the tile position matches the end then change it to a W (piece)
+-- Generates the next state based on a piece sliding from one point to another
 buildNextStateFromSlide :: State -> Piece -> Slide -> State
 buildNextStateFromSlide state piece slide = map (\tile -> buildTile tile start end ) state
     where
         start = fst slide
         end   = snd slide
         buildTile tile start end
-            | snd tile == start   = (D, snd tile)
-            | snd tile == end     = (piece, snd tile)
-            | otherwise           = tile
+            | snd tile == start   = (D, snd tile)     -- Sliding from this tile, so change it to empty
+            | snd tile == end     = (piece, snd tile) -- Sliding to this tile, so change it to player piece
+            | otherwise           = tile -- Tile is unaffected by the slide, so remains unchanged
 
+-- Generates the next state based on a piece jumping from one point to another
 buildNextStateFromJump :: State -> Piece -> Jump -> State
 buildNextStateFromJump state piece jump = map (\tile -> buildTile tile start end) state
     where
         start = leapStart jump
         end = leapDestination jump
         buildTile tile start end
-            | snd tile == start  = (D, snd tile)
-            | snd tile == end    = (piece, snd tile)
-            | otherwise          = tile  
+            | snd tile == start  = (D, snd tile)     -- Jumping from this tile, so change to empty space
+            | snd tile == end    = (piece, snd tile) -- Jumping to this tile, so change it to the player piece
+            | otherwise          = tile  -- Tile unaffected by the jump, so leave it unchanged
 
--- Slide is legal if the point being moved to is empty
+-- Slide is only legal if the point being moved to is empty
 findLegalSlides :: [Slide] -> State -> [Slide]
 findLegalSlides slides boardState = filter (\slide -> containsPiece (snd slide) boardState D) slides
 
@@ -440,21 +441,24 @@ findLegalLeaps leaps boardState playerPiece =  filter
                                                           && (containsPiece (leapMiddle leap) boardState playerPiece) )
                                                leaps
 
+-- Generates all possible slides from some point based on the dimensions of the grid
 generateSlides :: Point -> Int -> [Slide]
 generateSlides point n = map (\toPoint -> (point,toPoint)) slidesWithinBoard
     where
-        directions = [R,L,UL,UR,DL,DR]
-        toPoints = map (\d -> move point d n) directions
-        slidesWithinBoard = filter (\p -> withinBoard p n) toPoints  -- Filter for points that fall within the board
+        directions = [R,L,UL,UR,DL,DR] -- All possible directions
+        toPoints = map (\d -> move point d n) directions -- All possible points that can be moved to
+        slidesWithinBoard = filter (\p -> withinBoard p n) toPoints  -- Only select points that fall within the grid
 
+-- Generates all possible leaps from some point based on the dimensions of the grid
 generateLeaps :: Point -> Int -> [Jump]
 generateLeaps point n = map (\l -> (point, fst l, snd l)) leapsWithinBoard
     where
-        directions = [R,L,UL,UR,DL,DR]
-        allLeaps = map (\d -> moveTwice point d n) directions
-        leapsWithinBoard = filter (\l -> withinBoard (snd l) n) allLeaps -- Filter on leaps where final position (snd l) is within board
+        directions = [R,L,UL,UR,DL,DR] -- All possible directions
+        allLeaps = map (\d -> moveTwice point d n) directions -- All possible leaps, includes both the point being jumped over and the point being jumped to
+        leapsWithinBoard = filter (\l -> withinBoard (snd l) n) allLeaps -- Only select points that fall within the grid, where (snd l) is the final leap position
 
 -- Outputted slide represents the point that's being "jumped over" and the final jump position
+-- Used to represent a jump
 moveTwice :: Point -> Direction -> Int -> Slide
 moveTwice point direction n = (first,second)
     where
@@ -477,32 +481,32 @@ move point direction n
 
 moveUpLeft :: Point -> Int -> Point
 moveUpLeft point n
-    | y <= n-1  = (x-1,y-1)
-    | otherwise = (x,y-1)
+    | y <= n-1  = (x-1,y-1) -- Falls in the middle / upper half of grid
+    | otherwise = (x,y-1)   -- Falls in lower half
     where
         x = fst point
         y = snd point
 
 moveUpRight :: Point -> Int -> Point
 moveUpRight point n
-    | y <= n-1  = (x,y-1)
-    | otherwise = (x+1,y-1)
+    | y <= n-1  = (x,y-1)   -- Falls in middle / upper half of grid
+    | otherwise = (x+1,y-1) -- Falls in lower half
     where
         x = fst point
         y = snd point
 
 moveDownLeft :: Point -> Int -> Point
 moveDownLeft point n
-    | y >= n-1  = (x-1,y+1)
-    | otherwise = (x,y+1)
+    | y >= n-1  = (x-1,y+1) -- Falls in middle / lower half of grid
+    | otherwise = (x,y+1)   -- Falls in upper half
     where
         x = fst point
         y = snd point
 
 moveDownRight :: Point -> Int -> Point
 moveDownRight point n
-    | y >= n-1  = (x,y+1)
-    | otherwise = (x+1,y+1)
+    | y >= n-1  = (x,y+1)   -- Falls in middle / lower half of grid
+    | otherwise = (x+1,y+1) -- Falls in upper half
     where
         x = fst point
         y = snd point
